@@ -1,0 +1,17 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY common/ common/
+COPY client/ client/
+COPY tests/ tests/
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+ENV DFSHA_CONTROLNODE_URL=http://controlnode-primary:8000
+ENV DFSHA_CONTROLNODE_STANDBY_URL=http://controlnode-standby:8000
+
+CMD ["python", "-m", "client.cli"]

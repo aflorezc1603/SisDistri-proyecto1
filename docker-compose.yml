@@ -1,0 +1,134 @@
+version: '3.8'
+
+services:
+  controlnode-primary:
+    build:
+      context: .
+      dockerfile: Dockerfile.controlnode
+    container_name: dfsha-controlnode-primary
+    ports:
+      - "8000:8000"
+    environment:
+      - DFSHA_ROLE=primary
+      - DFSHA_PORT=8000
+      - DFSHA_STANDBY_URL=http://controlnode-standby:8000
+      - DFSHA_METADATA_DIR=/app/metadata
+      - DFSHA_CHUNK_SIZE=1048576
+      - DFSHA_REPLICATION_FACTOR=2
+    volumes:
+      - primary-metadata:/app/metadata
+    networks:
+      - dfsha-net
+
+  controlnode-standby:
+    build:
+      context: .
+      dockerfile: Dockerfile.controlnode
+    container_name: dfsha-controlnode-standby
+    ports:
+      - "8010:8000"
+    environment:
+      - DFSHA_ROLE=standby
+      - DFSHA_PORT=8000
+      - DFSHA_PRIMARY_URL=http://controlnode-primary:8000
+      - DFSHA_METADATA_DIR=/app/metadata
+      - DFSHA_HA_SYNC_INTERVAL=3.0
+      - DFSHA_HA_FAILOVER_THRESHOLD=3
+    volumes:
+      - standby-metadata:/app/metadata
+    depends_on:
+      - controlnode-primary
+    networks:
+      - dfsha-net
+
+  datanode-1:
+    build:
+      context: .
+      dockerfile: Dockerfile.datanode
+    container_name: dfsha-datanode-1
+    ports:
+      - "8001:8001"
+    environment:
+      - DFSHA_NODE_ID=datanode-1
+      - DFSHA_PORT=8001
+      - DFSHA_PUBLIC_URL=http://datanode-1:8001
+      - DFSHA_CONTROLNODE_URL=http://controlnode-primary:8000
+      - DFSHA_CONTROLNODE_STANDBY_URL=http://controlnode-standby:8000
+      - DFSHA_DATA_DIR=/app/data
+    volumes:
+      - dn1-data:/app/data
+    depends_on:
+      - controlnode-primary
+    networks:
+      - dfsha-net
+
+  datanode-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.datanode
+    container_name: dfsha-datanode-2
+    ports:
+      - "8002:8002"
+    environment:
+      - DFSHA_NODE_ID=datanode-2
+      - DFSHA_PORT=8002
+      - DFSHA_PUBLIC_URL=http://datanode-2:8002
+      - DFSHA_CONTROLNODE_URL=http://controlnode-primary:8000
+      - DFSHA_CONTROLNODE_STANDBY_URL=http://controlnode-standby:8000
+      - DFSHA_DATA_DIR=/app/data
+    volumes:
+      - dn2-data:/app/data
+    depends_on:
+      - controlnode-primary
+    networks:
+      - dfsha-net
+
+  datanode-3:
+    build:
+      context: .
+      dockerfile: Dockerfile.datanode
+    container_name: dfsha-datanode-3
+    ports:
+      - "8003:8003"
+    environment:
+      - DFSHA_NODE_ID=datanode-3
+      - DFSHA_PORT=8003
+      - DFSHA_PUBLIC_URL=http://datanode-3:8003
+      - DFSHA_CONTROLNODE_URL=http://controlnode-primary:8000
+      - DFSHA_CONTROLNODE_STANDBY_URL=http://controlnode-standby:8000
+      - DFSHA_DATA_DIR=/app/data
+    volumes:
+      - dn3-data:/app/data
+    depends_on:
+      - controlnode-primary
+    networks:
+      - dfsha-net
+
+  client:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: dfsha-client
+    stdin_open: true
+    tty: true
+    environment:
+      - DFSHA_CONTROLNODE_URL=http://controlnode-primary:8000
+      - DFSHA_CONTROLNODE_STANDBY_URL=http://controlnode-standby:8000
+    depends_on:
+      - controlnode-primary
+      - datanode-1
+      - datanode-2
+      - datanode-3
+    networks:
+      - dfsha-net
+
+volumes:
+  primary-metadata:
+  standby-metadata:
+  dn1-data:
+  dn2-data:
+  dn3-data:
+
+networks:
+  dfsha-net:
+    driver: bridge
